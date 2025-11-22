@@ -1,5 +1,6 @@
 """
-Core service for auditing Solidity contracts using OpenAI.
+Core service for auditing Solidity contracts using RedSpectre Swarm.
+MODIFIED to integrate Swarm logic while maintaining template compatibility.
 """
 import json
 import logging
@@ -7,10 +8,14 @@ from typing import List
 from pydantic import BaseModel, Field
 from openai import OpenAI
 
-from agent.services.prompts.audit_prompt import AUDIT_PROMPT
+# --- REDSPECTRE IMPORTS ---
+from agent.services.swarm import Swarm
+from agent.services.scout import Scout
+# --------------------------
 
 logger = logging.getLogger(__name__)
 
+# Keep these models identical to the template so dependent files don't break
 class VulnerabilityFinding(BaseModel):
     """Model representing a single vulnerability finding."""
     title: str = Field(..., description="Title of the vulnerability")
@@ -23,101 +28,62 @@ class Audit(BaseModel):
     findings: List[VulnerabilityFinding] = Field(default_factory=list, description="List of vulnerability findings")
 
 class SolidityAuditor:
-    """Service for auditing Solidity contracts using OpenAI."""
+    """Service for auditing Solidity contracts using RedSpectre Swarm."""
     
     def __init__(self, api_key: str, model: str):
         """
         Initialize the auditor with OpenAI credentials.
-        
-        Args:
-            api_key: OpenAI API key
-            model: OpenAI model to use
         """
         self.model = model
         self.client = OpenAI(api_key=api_key)
-
-    def audit_files(self, contracts: str, docs: str = "", additional_links: List[str] = None, additional_docs: str = None, qa_responses: List = None) -> Audit:
-        """
-        Audit Solidity contracts and return structured findings.
         
-        Args:
-            contracts: String containing all contract code
-            docs: String containing documentation
-            additional_links: List of additional reference links
-            additional_docs: Additional documentation text
-            qa_responses: List of question-answer pairs
-            
-        Returns:
-            Audit object containing the findings
+        # Initialize RedSpectre Components
+        self.scout = Scout()
+        self.swarm = Swarm(api_key=api_key, model=model)
+
+    def audit_files(self, contracts: List[object], docs: str = "", additional_links: List[str] = None, additional_docs: str = None, qa_responses: List = None) -> Audit:
+        """
+        RedSpectre Implementation:
+        1. Takes the list of SolidityFile objects (from local.py/server.py)
+        2. Feeds them to the Swarm (Thief/Logician)
+        3. Returns the standard Audit object compatible with AgentArena
         """
         try:
-            # Initialize optional parameters
-            additional_links = additional_links or []
-            qa_responses = qa_responses or []
-            
-            # Format QA pairs for the prompt
-            qa_formatted = ""
-            if qa_responses:
-                qa_formatted = "## Q&A Information\n"
-                for qa in qa_responses:
-                    qa_formatted += f"Q: {qa.question}\nA: {qa.answer}\n\n"
-            
-            # Format additional links
-            links_formatted = ""
-            if additional_links:
-                links_formatted = "## Additional References\n"
-                for link in additional_links:
-                    links_formatted += f"- {link}\n"
-            
-            # Format additional documentation
-            additional_docs_formatted = ""
-            if additional_docs:
-                additional_docs_formatted = f"## Additional Documentation\n{additional_docs}\n"
-            
-            # Prepare the audit prompt with all information
-            audit_prompt = AUDIT_PROMPT.format(
-                contracts=contracts,
-                docs=docs,
-                additional_links=links_formatted,
-                additional_docs=additional_docs_formatted,
-                qa_responses=qa_formatted
-            )
-            
-            # Send single request to OpenAI
-            logger.info("Sending audit request to OpenAI")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are an expert Solidity smart contract auditor."},
-                    {"role": "user", "content": audit_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            
-            # Extract and parse the JSON response
-            result_text = response.choices[0].message.content
-            logger.debug(f"Received audit response from OpenAI")
-            
-            try:
-                # Parse the JSON response
-                audit_result = json.loads(result_text)
-                
-                # Validate using Pydantic model
-                validated_result = Audit(**audit_result)
-                
-                findings_dict = [finding.model_dump(mode="json") for finding in validated_result.findings]
-                logger.info(f"Audit result: {json.dumps(findings_dict, indent=2)}")
+            logger.info("🚀 RedSpectre Swarm Activated")
+            verified_findings = []
 
-                logger.info(f"Audit completed successfully with {len(validated_result.findings)} findings")
-                return validated_result
-            except json.JSONDecodeError as json_err:
-                logger.error(f"Failed to parse JSON response: {json_err}")
-                logger.debug(f"Raw response: {result_text}")
-                return Audit(findings=[])
-            except Exception as validation_err:
-                logger.error(f"Validation error with audit response: {validation_err}")
-                return Audit(findings=[])
+            # In the template, 'contracts' is passed as a List[SolidityFile] object in local.py
+            # But sometimes as a string in other contexts. We handle the list case here.
+            files_to_audit = contracts if isinstance(contracts, list) else []
+            
+            # 1. The Swarm Analysis Loop
+            for file_obj in files_to_audit:
+                # file_obj has .path and .content attributes (from models/solidity_file.py)
+                logger.info(f"Swarm analyzing: {file_obj.path}")
                 
+                # Call the Swarm
+                # We pass the content and filename to the swarm logic
+                swarm_results = self.swarm.analyze_file(file_obj.content, file_obj.path)
+                
+                for res in swarm_results:
+                    # Map RedSpectre result to AgentArena Finding Model
+                    # We construct a detailed description including the reasoning logic
+                    detailed_desc = (
+                        f"{res['description']}\n\n"
+                        f"**Detected by:** {res['detected_by']} Persona\n"
+                        f"**Attack Logic:** {res['attack_logic']}"
+                    )
+
+                    verified_findings.append(VulnerabilityFinding(
+                        title=res['title'],
+                        description=detailed_desc,
+                        severity=res['severity'],
+                        file_paths=[file_obj.path]
+                    ))
+
+            logger.info(f"✅ Audit completed with {len(verified_findings)} verified findings")
+            return Audit(findings=verified_findings)
+
         except Exception as e:
-            logger.error(f"Error during audit: {str(e)}", exc_info=True)
+            logger.error(f"Error during RedSpectre audit: {str(e)}", exc_info=True)
             return Audit(findings=[])
