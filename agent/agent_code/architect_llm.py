@@ -1,7 +1,8 @@
 
 import json
-import openai
-from agent_code.prompts import SYSTEM_PROMPT
+import os
+from openai import OpenAI
+from .prompts import SYSTEM_PROMPT
 
 def generate_attack_hypothesis(contract_path, slither_finding):
     source_code = open(contract_path).read()
@@ -28,12 +29,15 @@ JSON Schema:
 }}
 """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-5",
+    client = OpenAI()
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    response = client.chat.completions.create(
+        model=model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ]
     )
 
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content

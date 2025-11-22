@@ -1,10 +1,10 @@
 
 import os
 import json
-from agent_code.static_scanner import run_slither_scan
-from agent_code.architect_llm import generate_attack_hypothesis
-from agent_code.dynamic_executor import generate_and_run_test
-from agent_code.parsers import clean_llm_json
+from .static_scanner import run_slither_scan
+from .architect_llm import generate_attack_hypothesis
+from .dynamic_executor import generate_and_run_test
+from .parsers import clean_llm_json
 
 
 def run_redspectre(target_contract_path: str):
@@ -17,7 +17,10 @@ def run_redspectre(target_contract_path: str):
     verified_exploits = []
     suspected_exploits = []
 
-    for finding in slither_results["findings"][:3]:
+    if not slither_results["findings"]:
+        print("[!] No findings returned by Slither; skipping exploitation phase.")
+
+    for finding in slither_results["findings"]:
         print(f"\n[*] Evaluating finding: {finding['id']} ({finding['impact']})")
 
         hypothesis_raw = generate_attack_hypothesis(
