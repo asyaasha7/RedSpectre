@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "solidity-audit-agent"
+version = "0.1.0"
+description = "AI agent for auditing Solidity code"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+dependencies = [
+    "fastapi>=0.95.0",
+    "uvicorn>=0.21.1",
+    "httpx>=0.24.0",
+    "pydantic>=1.10.7",
+    "pydantic_settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.0.0",
+    "gitpython>=3.1.31",
+    "questionary>=2.0.1",
+]
+
+[project.scripts]
+audit-agent = "agent.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
