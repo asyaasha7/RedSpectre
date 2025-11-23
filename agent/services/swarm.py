@@ -1,5 +1,6 @@
 import logging
 import re
+import concurrent.futures
 from typing import List, Dict, Any, Set, Type
 from .personas.access_control_expert import AccessControlExpert
 from .personas.arithmetic_expert import ArithmeticExpert
@@ -111,32 +112,21 @@ class Swarm:
 
         heuristic_hits: Set[str] = set()
 
-        if has_any(["oracle", "pricefeed", "aggregatorv3", "chainlink", "feed", "price"]):
-            heuristic_hits.add("oracle")
-        if has_any(["flashloan", "flash loan", "flashborrower", "flashborrowerbase", "flash mint", "flashmint"]):
-            heuristic_hits.add("flashloan")
-        if has_any(["delegatecall", ".delegatecall", "proxy", "upgradeable", "beacon", "transparentupgradable", "implementation"]):
-            heuristic_hits.add("proxy")
-        if has_any(["swap", "pool", "liquidity", "amm", "lp", "dex", "vault", "stake", "yield"]):
-            heuristic_hits.add("amm/defi")
-        if has_any(["ecrecover", "permit(", "signature", "nonces", "v,r,s", "signed"]) or "sig" in filename.lower():
-            heuristic_hits.add("signature")
-        if has_any(["call{value", ".call(", "staticcall", "low level call", "assembly {", "inline assembly"]):
-            heuristic_hits.add("low-level")
-        if has_any(["timestamp", "block.timestamp", "block.number", "vrf"]):
-            heuristic_hits.add("timestamp")
-        if has_any(["math", "unchecked", "safemath", "mul(", "div("]):
-            heuristic_hits.add("arithmetic")
-        if has_any(["token", "erc20", "erc777", "erc721", "erc1155", "allowance", "approve"]):
-            heuristic_hits.add("token")
-        if has_any(["interface", "interface ", "abi.encode", "abi.decode"]):
-            heuristic_hits.add("interface")
-        if has_any(["owner", "onlyowner", "accesscontrol", "role", "governance", "multisig", "timelock"]):
-            heuristic_hits.add("governance/access")
-        if has_any(["error", "require(", "assert(", "revert"]):
-            heuristic_hits.add("errors")
-        if has_any(["dos", "loop", "while(", "for("]) or "dos" in filename.lower():
-            heuristic_hits.add("dos/loop")
+        high_signal_heuristics = {
+            "oracle": ["oracle", "pricefeed", "aggregatorv3", "chainlink", "feed", "price"],
+            "flashloan": ["flashloan", "flash loan", "flashborrower", "flashborrowerbase", "flash mint", "flashmint"],
+            "proxy": ["delegatecall", ".delegatecall", "proxy", "upgradeable", "beacon", "transparentupgradable", "implementation"],
+            "amm/defi": ["swap", "pool", "liquidity", "amm", "lp", "dex", "vault", "stake", "yield"],
+            "signature": ["ecrecover", "permit(", "signature", "nonces", "v,r,s", "signed"],
+            "low-level": ["call{value", ".call(", "staticcall", "low level call", "assembly {", "inline assembly"],
+            "timestamp": ["timestamp", "block.timestamp", "block.number", "vrf"],
+            "token": ["token", "erc20", "erc777", "erc721", "erc1155", "allowance", "approve"],
+            "governance/access": ["owner", "onlyowner", "accesscontrol", "role", "governance", "multisig", "timelock"],
+        }
+
+        for label, terms in high_signal_heuristics.items():
+            if has_any(terms) or (label == "signature" and "sig" in filename.lower()):
+                heuristic_hits.add(label)
 
         pragma_matches = re.findall(r"pragma\s+solidity\s+([^;]+);", source_code, flags=re.IGNORECASE)
         import_matches = re.findall(r"import\s+[^;]+;", source_code)
@@ -184,6 +174,12 @@ class Swarm:
             routed |= always_on
 
         selected = [agent for agent in self.agents if type(agent) in routed]
+        logger.info(
+            "Selected agents for %s: %s (heuristics=%s)",
+            filename,
+            [agent.name for agent in selected],
+            sorted(heuristic_hits),
+        )
         logger.debug(
             "Routing %s through %d personas (fallback size=%d).",
             filename,
@@ -192,44 +188,73 @@ class Swarm:
         )
         return selected
 
+    def _code_snippet(self, source_code: str, line_number: int, context: int = 2) -> str:
+        """
+        Returns a small, line-numbered snippet around the reported line for triage.
+        """
+        if not line_number or line_number < 1:
+            return ""
+        lines = source_code.splitlines()
+        idx = line_number - 1
+        if idx >= len(lines):
+            return ""
+        start = max(0, idx - context)
+        end = min(len(lines), idx + context + 1)
+        snippet_lines = [f"{i + 1}: {lines[i][:400]}" for i in range(start, end)]
+        return "\n".join(snippet_lines)
+
     def analyze_file(self, source_code: str, filename: str) -> List[Dict[str, Any]]:
         """
         Broadcasts the file to all agents in the Swarm.
         """
         findings = []
+        selected_agents = self._select_agents(source_code, filename)
 
-        for agent in self._select_agents(source_code, filename):
-            # The agent reasons about the file
-            analysis = agent.hunt(source_code, filename)
-            
-            if analysis.get("found_vulnerability"):
-                findings.append({
-                    "title": analysis.get('title', 'Unknown Vuln'),
-                    "description": analysis.get('kill_chain', 'No details'),
-                    "severity": analysis.get('severity', 'High'),
-                    "file_path": filename,
-                    "line_number": analysis.get('line_number', 0),
-                    "confidence": "Verified by Swarm Reasoning",
-                    "detected_by": agent.name,
-                    "attack_logic": analysis.get('kill_chain', 'See description'),
-                    "verification_proof": analysis.get('verification_proof')
-                })
-            elif analysis.get("optimization_opportunity"):
-                gas_savings = analysis.get("gas_savings_estimate", "N/A")
-                description = analysis.get(
-                    "description",
-                    "Gas optimization opportunity identified."
-                )
-                findings.append({
-                    "title": analysis.get("title", "Gas Optimization Opportunity"),
-                    "description": f"{description}\n\nEstimated gas savings: {gas_savings}",
-                    "severity": analysis.get("severity", "Informational"),
-                    "file_path": filename,
-                    "line_number": analysis.get("line_number", 0),
-                    "confidence": "Optimization recommendation",
-                    "detected_by": agent.name,
-                    "attack_logic": analysis.get("attack_logic", "Gas optimization reasoning"),
-                    "verification_proof": analysis.get("verification_proof")
-                })
-                
+        def _run_agent(agent):
+            try:
+                return agent, agent.hunt(source_code, filename)
+            except Exception:
+                logger.exception("Agent %s failed during hunt on %s", agent.name, filename)
+                return agent, {}
+
+        max_workers = len(selected_agents) or 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for agent, analysis in executor.map(_run_agent, selected_agents):
+                if analysis.get("found_vulnerability"):
+                    snippet = self._code_snippet(source_code, analysis.get('line_number'))
+                    description = analysis.get('kill_chain', 'No details')
+                    if snippet:
+                        description = f"{description}\n\nCode snippet:\n{snippet}"
+                    findings.append({
+                        "title": analysis.get('title', 'Unknown Vuln'),
+                        "description": description,
+                        "severity": analysis.get('severity', 'High'),
+                        "file_path": filename,
+                        "line_number": analysis.get('line_number', 0),
+                        "confidence": "Verified by Swarm Reasoning",
+                        "detected_by": agent.name,
+                        "attack_logic": analysis.get('kill_chain', 'See description'),
+                        "verification_proof": analysis.get('verification_proof')
+                    })
+                elif analysis.get("optimization_opportunity"):
+                    gas_savings = analysis.get("gas_savings_estimate", "N/A")
+                    description = analysis.get(
+                        "description",
+                        "Gas optimization opportunity identified."
+                    )
+                    snippet = self._code_snippet(source_code, analysis.get('line_number'))
+                    if snippet:
+                        description = f"{description}\n\nCode snippet:\n{snippet}"
+                    findings.append({
+                        "title": analysis.get("title", "Gas Optimization Opportunity"),
+                        "description": f"{description}\n\nEstimated gas savings: {gas_savings}",
+                        "severity": analysis.get("severity", "Informational"),
+                        "file_path": filename,
+                        "line_number": analysis.get("line_number", 0),
+                        "confidence": "Optimization recommendation",
+                        "detected_by": agent.name,
+                        "attack_logic": analysis.get("attack_logic", "Gas optimization reasoning"),
+                        "verification_proof": analysis.get("verification_proof")
+                    })
+
         return findings

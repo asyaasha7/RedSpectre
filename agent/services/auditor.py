@@ -11,7 +11,7 @@ from openai import OpenAI
 # --- REDSPECTRE IMPORTS ---
 from agent.services.swarm import Swarm
 from agent.services.scout import Scout
-from agent.services.dedup import deduplicate_findings
+from agent.services.dedup import select_top_findings
 # --------------------------
 
 logger = logging.getLogger(__name__)
@@ -86,25 +86,11 @@ class SolidityAuditor:
                         file_paths=[file_obj.path]
                     ))
 
-            deduped = deduplicate_findings(verified_findings)
-            severity_order = {
-                "Critical": 4,
-                "High": 3,
-                "Medium": 2,
-                "Low": 1,
-                "Informational": 0,
-                "Info": 0,
-            }
-            sorted_findings = sorted(
-                deduped,
-                key=lambda f: severity_order.get(f.severity, 0),
-                reverse=True
-            )
-            limited = sorted_findings[:20]
-            if len(deduped) > 20:
-                logger.info(f"Limiting findings to top 20 by severity (from {len(deduped)})")
+            limited = select_top_findings(verified_findings, limit=20)
+            if len(verified_findings) > 20:
+                logger.info(f"Limiting findings to top {len(limited)} by consensus/severity (from {len(verified_findings)})")
 
-            logger.info(f"✅ Audit completed with {len(limited)} returned findings (deduped raw: {len(deduped)}, initial: {len(verified_findings)})")
+            logger.info(f"✅ Audit completed with {len(limited)} returned findings (initial: {len(verified_findings)})")
             # Explicit print to stdout for quick debugging when running the server
             # print(f"[Audit Debug] Verified findings (pre-dedup): {verified_findings}")
             # print(f"[Audit Debug] Deduped findings: {deduped}")
