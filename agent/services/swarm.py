@@ -25,6 +25,7 @@ from .personas.timestamp_expert import TimestampExpert
 from .personas.token_expert import TokenExpert
 from .personas.routing_analyst import RoutingAnalyst
 from .personas.critic import Critic
+from .personas.audit_generalist import AuditGeneralist
 
 logger = logging.getLogger(__name__)
 
@@ -32,17 +33,25 @@ class Swarm:
     def __init__(
         self,
         api_key: str = None,
-        model: str = "gpt-4o",
+        model: str = "gpt-5",
         cache_enabled: bool = False,
         persona_models: Optional[Dict[str, str]] = None,
-        routing_enabled: bool = False,
+        routing_enabled: bool = True,
     ):
         # The Council of Agents
         # Add new personas here as you build them
-        self.persona_models = persona_models or {}
+        # Normalize model choice to avoid weaker defaults like gpt-4o-mini.
+        normalized_model = model or "gpt-5"
+        if normalized_model.lower() in {"gpt-4o-mini", "gpt-4o-mini-2024-07-18"}:
+            normalized_model = "gpt-5"
+
+        self.persona_models = {
+            k: ("gpt-5" if v and v.lower().startswith("gpt-4o-mini") else v)
+            for k, v in (persona_models or {}).items()
+        }
 
         def _select_model(cls):
-            return self.persona_models.get(cls.__name__, model)
+            return self.persona_models.get(cls.__name__, normalized_model)
 
         self.agents = [
             AccessControlExpert(api_key=api_key, model=_select_model(AccessControlExpert)),
@@ -64,6 +73,7 @@ class Swarm:
             TimestampExpert(api_key=api_key, model=_select_model(TimestampExpert)),
             TokenExpert(api_key=api_key, model=_select_model(TokenExpert)),
             Critic(api_key=api_key, model=_select_model(Critic)),
+            AuditGeneralist(api_key=api_key, model=_select_model(AuditGeneralist)),
         ]
         self._agent_by_type = {type(agent): agent for agent in self.agents}
         self._persona_name_to_type: Dict[str, Type] = {
@@ -86,6 +96,7 @@ class Swarm:
             "TimestampExpert": TimestampExpert,
             "TokenExpert": TokenExpert,
             "Critic": Critic,
+            "AuditGeneralist": AuditGeneralist,
         }
         self.routing_analyst = RoutingAnalyst(api_key=api_key, model=model)
         # In-memory cache keyed by content hash to skip re-analysis of unchanged files.
@@ -118,6 +129,7 @@ class Swarm:
             DeFiAnalyst,
             GasOptimizationExpert,
             Critic,
+            AuditGeneralist,
         }
 
         heuristic_hits: Set[str] = set()
@@ -255,7 +267,7 @@ class Swarm:
                 logger.exception("Agent %s failed during hunt on %s", agent.name, filename)
                 return agent, {}
 
-        max_workers = len(selected_agents) or 1
+        max_workers = min(len(selected_agents) or 1, 4)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for agent, analysis in executor.map(_run_agent, selected_agents):
                 if persona_outputs is not None:

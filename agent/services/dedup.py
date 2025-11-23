@@ -79,10 +79,32 @@ def select_top_findings(findings: List[VulnerabilityFinding], limit: int = 20) -
             if "Consensus:" not in best.description:
                 best.description = f"{best.description}{consensus_note}"
 
-        # Rank by consensus first, then severity, then number of affected files.
+        confidence = getattr(best, "confidence_score", None)
+        if confidence is None and isinstance(best, dict):
+            confidence = best.get("confidence_score")
+        if confidence is None:
+            confidence = 50
+        try:
+            confidence = int(confidence)
+        except Exception:
+            confidence = 50
+
+        false_positive_risk = getattr(best, "false_positive_risk", None)
+        if false_positive_risk is None and isinstance(best, dict):
+            false_positive_risk = best.get("false_positive_risk")
+        if false_positive_risk is None:
+            false_positive_risk = 50
+        try:
+            false_positive_risk = int(false_positive_risk)
+        except Exception:
+            false_positive_risk = 50
+
+        # Rank by consensus, severity, confidence, negative of false-positive risk, then breadth.
         score = (
             support,
             severity_rank.get(best.severity, 0),
+            confidence,
+            -false_positive_risk,
             len(best.file_paths),
         )
         scored.append((score, best))

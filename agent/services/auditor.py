@@ -4,8 +4,10 @@ MODIFIED to integrate Swarm logic while maintaining template compatibility.
 """
 import json
 import logging
+import os
+from collections import defaultdict
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 from openai import OpenAI
 
@@ -14,9 +16,50 @@ from agent.services.swarm import Swarm
 from agent.services.scout import Scout
 from agent.services.dedup import select_top_findings
 from agent.services.prompts.audit_prompt import AUDIT_PROMPT
+from agent.services.reference_docs import DEFAULT_DOCS
 # --------------------------
 
 logger = logging.getLogger(__name__)
+
+def _load_slither_leads(report_path: str = "slither_report.json") -> Dict[str, List[Dict[str, Any]]]:
+    """Parse slither JSON report into a map of filename -> findings."""
+    if not os.path.exists(report_path):
+        return {}
+    try:
+        with open(report_path) as f:
+            data = json.load(f)
+    except Exception:
+        return {}
+    leads = defaultdict(list)
+    for det in data.get("results", {}).get("detectors", []):
+        check = det.get("check")
+        impact = det.get("impact")
+        desc = det.get("description") or det.get("title") or ""
+        for elem in det.get("elements", []):
+            sm = elem.get("source_mapping", {}) or {}
+            filename = sm.get("filename") or sm.get("filename_absolute") or ""
+            lines = sm.get("lines") or []
+            leads[filename].append({
+                "check": check,
+                "impact": impact,
+                "description": elem.get("description") or desc,
+                "lines": lines,
+            })
+    return leads
+
+def _match_leads(leads_map: Dict[str, List[Dict[str, Any]]], path: str) -> List[Dict[str, Any]]:
+    """Return slither leads for a given path, matching by full path or basename suffix."""
+    if not leads_map:
+        return []
+    if path in leads_map:
+        return leads_map[path]
+    basename = os.path.basename(path)
+    for k, v in leads_map.items():
+        if basename and basename == os.path.basename(k):
+            return v
+        if path.endswith(k) or k.endswith(path):
+            return v
+    return []
 
 # Keep these models identical to the template so dependent files don't break
 class VulnerabilityFinding(BaseModel):
@@ -33,11 +76,11 @@ class Audit(BaseModel):
 class SolidityAuditor:
     """Service for auditing Solidity contracts using RedSpectre Swarm."""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o"):
+    def __init__(self, api_key: str, model: str = "gpt-5"):
         """
         Initialize the auditor with OpenAI credentials.
         """
-        self.model = model
+        self.model = "gpt-5" if (not model or model.lower().startswith("gpt-4o-mini")) else model
         self.client = OpenAI(api_key=api_key)
         
         # Initialize RedSpectre Components
@@ -115,6 +158,7 @@ class SolidityAuditor:
             logger.info("🚀 RedSpectre Swarm Activated")
             logger.info(f"Received contracts payload type={type(contracts)}")
             verified_findings = []
+            slither_leads = {}
 
             # In the template, 'contracts' is passed as a List[SolidityFile] object in local.py
             # But sometimes as a string in other contexts. We handle the list case here.
@@ -125,16 +169,22 @@ class SolidityAuditor:
             # 1. The Swarm Analysis Loop
             raw_persona_outputs = [] if benchmark_mode else None
 
+            enriched_docs = "\n\n".join([docs or "", DEFAULT_DOCS]).strip()
+            slither_summary_lines = []
+
+            slither_summary = ""
+
             for file_obj in files_to_audit:
                 # file_obj has .path and .content attributes (from models/solidity_file.py)
                 logger.info(f"Swarm analyzing: {file_obj.path}")
+                file_docs = enriched_docs
                 
                 # Call the Swarm
                 # We pass the content, filename, and any supplemental context to the swarm logic
                 swarm_results = self.swarm.analyze_file(
                     file_obj.content,
                     file_obj.path,
-                    docs=docs,
+                    docs=file_docs,
                     additional_links=additional_links,
                     additional_docs=additional_docs,
                     qa_responses=qa_responses,
@@ -143,12 +193,16 @@ class SolidityAuditor:
                 logger.debug(f"Raw swarm results for {file_obj.path}: {swarm_results}")
                 
                 for res in swarm_results:
+                    # Basic validation: require description and a location for quality
+                    if not res.get("description") or res.get("line_number", 0) == 0:
+                        continue
                     # Map RedSpectre result to AgentArena Finding Model
-                    # We construct a detailed description including the reasoning logic
+                    # We construct a structured, research-style narrative with logic/proof/snippet preserved
                     detailed_desc = (
                         f"{res['description']}\n\n"
-                        f"**Detected by:** {res['detected_by']} Persona\n"
-                        f"**Attack Logic:** {res['attack_logic']}"
+                        f"Attack Logic: {res.get('attack_logic') or 'Not provided'}\n"
+                        f"Verification Proof: {res.get('verification_proof') or 'Not provided'}\n"
+                        f"Detected by: {res['detected_by']} Persona"
                     )
 
                     verified_findings.append(VulnerabilityFinding(
@@ -160,7 +214,7 @@ class SolidityAuditor:
 
             if not verified_findings and files_to_audit:
                 logger.info("No swarm findings; invoking fallback AUDIT_PROMPT.")
-                fallback = self._fallback_audit_prompt(files_to_audit, docs, additional_links or [], additional_docs, qa_responses or [])
+                fallback = self._fallback_audit_prompt(files_to_audit, enriched_docs, additional_links or [], additional_docs, qa_responses or [])
                 for res in fallback:
                     verified_findings.append(VulnerabilityFinding(
                         title=res['title'],
