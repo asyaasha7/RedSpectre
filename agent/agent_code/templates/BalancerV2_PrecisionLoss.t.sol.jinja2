@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+{% if interface_imports %}
+{% for import_path in interface_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% else %}
+import "../interface.sol";
+{% endif %}
+{% if contract_imports %}
+{% for import_path in contract_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% endif %}
+
+// @KeyInfo - Total Lost : 120M USD
+// Attacker : https://etherscan.io/address/0x506d1f9efe24f0d47853adca907eb8d89ae03207
+// Attack Contract : https://etherscan.io/address/0x54B53503c0e2173Df29f8da735fBd45Ee8aBa30d
+// Vulnerable Contract : {{ vulnerable_contract_address }}
+// Attack Tx: {{ attack_tx_hash }}
+// Withdrawal Tx: {{ withdrawal_tx_hash }}
+
+// @Info
+// Vulnerable Contract Code : {{ vulnerable_contract_code }}
+
+// @Analysis
+// Post-mortem : https://x.com/BlockSecTeam/status/1986057732810518640, https://x.com/SlowMist_Team/status/1986379316935205299, https://x.com/hklst4r/status/1985872151077953827
+// Twitter Guy : https://x.com/BlockSecTeam/status/1986057732810518640, https://x.com/SlowMist_Team/status/1986379316935205299, https://x.com/hklst4r/status/1985872151077953827
+// Hacking God : N/A
+
+contract BalancerV2_PrecisionLoss_2025_11_Exploit_{{ vulnerability_id }} is Test {
+    {% if use_deployed_contract %}
+    {{ target_contract_name }} public target = {{ target_contract_name }}({{ vulnerable_contract_address }});
+    {% else %}
+    {{ target_contract_name }} public target;
+    {% endif %}
+    address public attacker = {{ attacker_address }};
+    address public attackContract = {{ attack_contract_address }};
+{% if additional_contracts %}
+    {{ additional_contracts }}
+{% endif %}
+
+    function setUp() public {
+        {% if not use_deployed_contract %}
+        target = new {{ target_contract_name }}();
+        {% endif %}
+        vm.deal(address(this), 100 ether);
+        vm.deal(attacker, 100 ether);
+{% if additional_setup %}
+        {{ additional_setup }}
+{% endif %}
+    }
+
+    function testExploit_{{ vulnerability_id }}() public {
+        uint256 beforeBalance = address(target).balance;
+        uint256 attackerBeforeBalance = attacker.balance;
+
+        console.log("[-] Before: target bal=%s attacker bal=%s", beforeBalance, attackerBeforeBalance);
+
+        // Step 1: Exploit precision loss in Composable Stable Pool math
+        {{ step_1_code }}
+
+        // Step 2: Drain assets using distorted pool accounting
+        {{ step_2_code }}
+
+        uint256 afterBalance = address(target).balance;
+        uint256 attackerAfterBalance = attacker.balance;
+
+        console.log("[+] After: target bal=%s attacker bal=%s", afterBalance, attackerAfterBalance);
+
+        // Verify exploit succeeded
+        {{ invariant_check }}
+    }
+}
+

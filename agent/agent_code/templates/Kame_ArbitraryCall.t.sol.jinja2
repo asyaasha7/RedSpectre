@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+{% if interface_imports %}
+{% for import_path in interface_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% else %}
+import "../interface.sol";
+{% endif %}
+{% if contract_imports %}
+{% for import_path in contract_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% endif %}
+
+// @KeyInfo - Total Lost : 18,167.8 USD
+// Attacker : https://etherscan.io/address/0x5B18cF51EeAe6a3982F6E109C6DbbE632683f96B
+// Attack Contract : https://etherscan.io/address/0x1fD8E2B0684c95bE88F7c2C51C62E8853EA2b274
+// Vulnerable Contract : https://etherscan.io/address/0x852Cd828b79097e2B7D8e58Fb3Bb9fA9F3c87F44
+// Attack Tx: {{ attack_tx_hash }}
+// Withdrawal Tx: {{ withdrawal_tx_hash }}
+
+// @Info
+// Vulnerable Contract Code : {{ vulnerable_contract_code }}
+
+// @Analysis
+// Post-mortem : https://x.com/SupremacyHQ/status/1966909841483636849
+// Twitter Guy : https://x.com/SupremacyHQ/status/1966909841483636849
+// Hacking God : N/A
+
+contract Kame_ArbitraryCall_2025_09_Exploit_{{ vulnerability_id }} is Test {
+    {% if use_deployed_contract %}
+    {{ target_contract_name }} public target = {{ target_contract_name }}({{ vulnerable_contract_address }});
+    {% else %}
+    {{ target_contract_name }} public target;
+    {% endif %}
+    address public attacker = {{ attacker_address }};
+    address public attackContract = {{ attack_contract_address }};
+{% if additional_contracts %}
+    {{ additional_contracts }}
+{% endif %}
+
+    function setUp() public {
+        {% if not use_deployed_contract %}
+        target = new {{ target_contract_name }}();
+        {% endif %}
+        vm.deal(address(this), 100 ether);
+        vm.deal(attacker, 100 ether);
+{% if additional_setup %}
+        {{ additional_setup }}
+{% endif %}
+    }
+
+    function testExploit_{{ vulnerability_id }}() public {
+        uint256 beforeBalance = address(target).balance;
+        uint256 attackerBeforeBalance = attacker.balance;
+
+        console.log("[-] Before: target bal=%s attacker bal=%s", beforeBalance, attackerBeforeBalance);
+
+        // Step 1: Craft arbitrary external call with insufficient restrictions
+        {{ step_1_code }}
+
+        // Step 2: Route funds to attacker address via external call
+        {{ step_2_code }}
+
+        uint256 afterBalance = address(target).balance;
+        uint256 attackerAfterBalance = attacker.balance;
+
+        console.log("[+] After: target bal=%s attacker bal=%s", afterBalance, attackerAfterBalance);
+
+        // Verify exploit succeeded - funds routed to attacker
+        {{ invariant_check }}
+    }
+}
+

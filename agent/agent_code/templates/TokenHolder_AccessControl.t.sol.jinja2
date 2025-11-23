@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+{% if interface_imports %}
+{% for import_path in interface_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% else %}
+import "../interface.sol";
+{% endif %}
+{% if contract_imports %}
+{% for import_path in contract_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% endif %}
+
+// @KeyInfo - Total Lost : 20 WBNB
+// Attacker : https://bscscan.com/address/0x0A7A6FEAFe2E6a21c83E7f0825eC2aD60C0B17b3
+// Attack Contract : https://bscscan.com/address/0x19ed73E3aE9801a9838E8c316723abbEB10547DD
+// Vulnerable Contract : https://bscscan.com/address/0x9E4d73bD4f1aeAfF1d787d44A57759F4B07C2F75
+// Attack Tx: {{ attack_tx_hash }}
+// Withdrawal Tx: {{ withdrawal_tx_hash }}
+
+// @Info
+// Vulnerable Contract Code : {{ vulnerable_contract_code }}
+
+// @Analysis
+// Post-mortem : https://t.me/defimon_alerts/2027
+// Twitter Guy : N/A
+// Hacking God : N/A
+
+contract TokenHolder_AccessControl_2025_10_Exploit_{{ vulnerability_id }} is Test {
+    {% if use_deployed_contract %}
+    {{ target_contract_name }} public target = {{ target_contract_name }}({{ vulnerable_contract_address }});
+    {% else %}
+    {{ target_contract_name }} public target;
+    {% endif %}
+    address public attacker = {{ attacker_address }};
+    address public attackContract = {{ attack_contract_address }};
+    {% if wbnb_interface %}
+    {{ wbnb_interface }} public wbnb = {{ wbnb_interface }}({{ wbnb_address }});
+    {% else %}
+    IERC20 public wbnb = IERC20({{ wbnb_address }});
+    {% endif %}
+{% if additional_contracts %}
+    {{ additional_contracts }}
+{% endif %}
+
+    function setUp() public {
+        {% if not use_deployed_contract %}
+        target = new {{ target_contract_name }}();
+        {% endif %}
+        vm.deal(address(this), 100 ether);
+        vm.deal(attacker, 100 ether);
+{% if additional_setup %}
+        {{ additional_setup }}
+{% endif %}
+    }
+
+    function testExploit_{{ vulnerability_id }}() public {
+        uint256 beforeBalance = wbnb.balanceOf(address(target));
+        uint256 attackerBeforeBalance = wbnb.balanceOf(attacker);
+
+        console.log("[-] Before: target WBNB=%s attacker WBNB=%s", beforeBalance, attackerBeforeBalance);
+
+        // Step 1: Identify missing access control
+        {{ step_1_code }}
+
+        // Step 2: Exploit access control to withdraw funds
+        {{ step_2_code }}
+
+        uint256 afterBalance = wbnb.balanceOf(address(target));
+        uint256 attackerAfterBalance = wbnb.balanceOf(attacker);
+
+        console.log("[+] After: target WBNB=%s attacker WBNB=%s", afterBalance, attackerAfterBalance);
+
+        // Verify exploit succeeded - attacker gained funds
+        {{ invariant_check }}
+    }
+}
+

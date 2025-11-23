@@ -1,0 +1,63 @@
+
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+import "../src/{{ target_contract_name }}.sol";
+import "../interface.sol";
+import "../StableMath.sol";
+{% if contract_imports %}
+{% for import_path in contract_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% else %}
+import "../BalancerVault.sol";
+import "../ComposableStablePool.sol";
+{% endif %}
+{% if additional_imports %}
+{% for import_path in additional_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% endif %}
+
+// @KeyInfo - Total Lost : 120M USD
+// Attacker : https://etherscan.io/address/0x506d1f9efe24f0d47853adca907eb8d89ae03207
+// Attack Contract : https://etherscan.io/address/0x54B53503c0e2173Df29f8da735fBd45Ee8aBa30d
+// Vulnerable Contract : {{ vulnerable_contract_address }}
+// Attack Tx: {{ attack_tx_hash }}
+// Withdrawal Tx: {{ withdrawal_tx_hash }}
+
+// @Info
+// Vulnerable Contract Code : {{ vulnerable_contract_code }}
+
+// @Analysis
+// Post-mortem : https://x.com/BlockSecTeam/status/1986057732810518640, https://x.com/SlowMist_Team/status/1986379316935205299, https://x.com/hklst4r/status/1985872151077953827
+// Twitter Guy : https://x.com/BlockSecTeam/status/1986057732810518640, https://x.com/SlowMist_Team/status/1986379316935205299, https://x.com/hklst4r/status/1985872151077953827
+// Hacking God : N/A
+
+contract BalancerV2_PrecisionLoss_2025_11_Exploit_{{ vulnerability_id }} is Test {
+    {{ target_contract_name }} public target;
+
+    function setUp() public {
+        target = new {{ target_contract_name }}();
+        vm.deal(address(this), 100 ether);
+    }
+
+    function testExploit_{{ vulnerability_id }}() public {
+        address beforeOwner = target.owner();
+        uint256 beforeBalance = address(target).balance;
+
+        console.log("[-] Before: owner=%s bal=%s", beforeOwner, beforeBalance);
+
+        {{ step_1_code }}
+        {{ step_2_code }}
+
+        address afterOwner = target.owner();
+        uint256 afterBalance = address(target).balance;
+
+        console.log("[+] After: owner=%s bal=%s", afterOwner, afterBalance);
+
+        {{ invariant_check }}
+    }
+}
+

@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+{% if interface_imports %}
+{% for import_path in interface_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% else %}
+import "../interface.sol";
+{% endif %}
+{% if contract_imports %}
+{% for import_path in contract_imports %}
+import "{{ import_path }}";
+{% endfor %}
+{% endif %}
+
+// @KeyInfo - Total Lost : 1.7M USD
+// Attacker : https://etherscan.io/address/0x33022e998c52e05d4Ff207cEa8573243e431e784
+// Attack Contract : https://etherscan.io/address/0xd3A8b78497Ae791a6355df405FfA7aE4B765cE37
+// Vulnerable Contract : https://etherscan.io/address/0xA51d3Bf92B49d4B7F9B0CD2F1c26E220A3c5De8e
+// Attack Tx: {{ attack_tx_hash }}
+// Withdrawal Tx: {{ withdrawal_tx_hash }}
+
+// @Info
+// Vulnerable Contract Code : {{ vulnerable_contract_code }}
+
+// @Analysis
+// Post-mortem : https://x.com/Phalcon_xyz/status/1974532815208485102
+// Twitter Guy : https://x.com/Phalcon_xyz/status/1974532815208485102
+// Hacking God : N/A
+
+contract MIMSpell3_InsolvencyBypass_2025_10_Exploit_{{ vulnerability_id }} is Test {
+    {% if use_deployed_contract %}
+    {{ target_contract_name }} public target = {{ target_contract_name }}({{ vulnerable_contract_address }});
+    {% else %}
+    {{ target_contract_name }} public target;
+    {% endif %}
+    address public attacker = {{ attacker_address }};
+    address public attackContract = {{ attack_contract_address }};
+{% if additional_contracts %}
+    {{ additional_contracts }}
+{% endif %}
+
+    function setUp() public {
+        {% if not use_deployed_contract %}
+        target = new {{ target_contract_name }}();
+        {% endif %}
+        vm.deal(address(this), 100 ether);
+        vm.deal(attacker, 100 ether);
+{% if additional_setup %}
+        {{ additional_setup }}
+{% endif %}
+    }
+
+    function testExploit_{{ vulnerability_id }}() public {
+        uint256 beforeCollateral = target.totalCollateral();
+        uint256 beforeDebt = target.totalDebt();
+        uint256 attackerBeforeBalance = attacker.balance;
+
+        console.log("[-] Before: collateral=%s debt=%s attacker bal=%s", 
+            beforeCollateral, beforeDebt, attackerBeforeBalance);
+
+        // Step 1: Bypass insolvency check by manipulating health factor
+        {{ step_1_code }}
+
+        // Step 2: Loop bad debt to drain funds
+        {{ step_2_code }}
+
+        uint256 afterCollateral = target.totalCollateral();
+        uint256 afterDebt = target.totalDebt();
+        uint256 attackerAfterBalance = attacker.balance;
+
+        console.log("[+] After: collateral=%s debt=%s attacker bal=%s", 
+            afterCollateral, afterDebt, attackerAfterBalance);
+
+        // Verify exploit succeeded - health factor bypassed
+        {{ invariant_check }}
+    }
+}
+
