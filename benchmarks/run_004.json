@@ -1,0 +1,13 @@
+{
+  "repo": "https://github.com/andreitoma8/learn-solidity-hacks.git",
+  "duration_seconds": 72.61,
+  "counts": {
+    "Critical": 19,
+    "High": 1,
+    "Medium": 0,
+    "Low": 0,
+    "Informational": 0
+  },
+  "total_findings": 20,
+  "timestamp": "2025-11-23T09:22:19Z"
+}

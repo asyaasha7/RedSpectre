@@ -4,11 +4,10 @@ import concurrent.futures
 import hashlib
 import threading
 import copy
-from typing import List, Dict, Any, Set, Type
+from typing import List, Dict, Any, Set, Type, Optional
 from .personas.access_control_expert import AccessControlExpert
 from .personas.arithmetic_expert import ArithmeticExpert
 from .personas.centralization_expert import CentralizationExpert
-from .personas.compiler_expert import CompilerExpert
 from .personas.defi_analyst import DeFiAnalyst
 from .personas.dos_expert import DoSExpert
 from .personas.economic_expert import EconomicExpert
@@ -17,8 +16,6 @@ from .personas.flashloan_expert import FlashLoanExpert
 from .personas.frontrunning_expert import FrontrunningExpert
 from .personas.gas_optimization_expert import GasOptimizationExpert
 from .personas.inheritance_expert import InheritanceExpert
-from .personas.interface_expert import InterfaceExpert
-from .personas.logician import Logician
 from .personas.logic_expert import LogicExpert
 from .personas.lowlevel_calls_expert import LowLevelCallsExpert
 from .personas.oracle_expert import OracleExpert
@@ -28,40 +25,49 @@ from .personas.storage_proxy_expert import StorageProxyExpert
 from .personas.thief import Thief
 from .personas.timestamp_expert import TimestampExpert
 from .personas.token_expert import TokenExpert
-from .personas.validation_expert import ValidationExpert
 from .personas.routing_analyst import RoutingAnalyst
+from .personas.critic import Critic
 
 logger = logging.getLogger(__name__)
 
 class Swarm:
-    def __init__(self, api_key: str = None, model: str = None, cache_enabled: bool = False):
+    def __init__(
+        self,
+        api_key: str = None,
+        model: str = "gpt-4o",
+        cache_enabled: bool = False,
+        persona_models: Optional[Dict[str, str]] = None,
+        routing_enabled: bool = False,
+    ):
         # The Council of Agents
         # Add new personas here as you build them
+        self.persona_models = persona_models or {}
+
+        def _select_model(cls):
+            return self.persona_models.get(cls.__name__, model)
+
         self.agents = [
-            Thief(api_key=api_key, model=model),
-            AccessControlExpert(api_key=api_key, model=model),
-            ArithmeticExpert(api_key=api_key, model=model),
-            CentralizationExpert(api_key=api_key, model=model),
-            CompilerExpert(api_key=api_key, model=model),
-            DeFiAnalyst(api_key=api_key, model=model),
-            DoSExpert(api_key=api_key, model=model),
-            EconomicExpert(api_key=api_key, model=model),
-            ErrorHandlingExpert(api_key=api_key, model=model),
-            FlashLoanExpert(api_key=api_key, model=model),
-            FrontrunningExpert(api_key=api_key, model=model),
-            GasOptimizationExpert(api_key=api_key, model=model),
-            InheritanceExpert(api_key=api_key, model=model),
-            InterfaceExpert(api_key=api_key, model=model),
-            Logician(api_key=api_key, model=model),
-            LogicExpert(api_key=api_key, model=model),
-            LowLevelCallsExpert(api_key=api_key, model=model),
-            OracleExpert(api_key=api_key, model=model),
-            ReentrancyExpert(api_key=api_key, model=model),
-            SignatureExpert(api_key=api_key, model=model),
-            StorageProxyExpert(api_key=api_key, model=model),
-            TimestampExpert(api_key=api_key, model=model),
-            TokenExpert(api_key=api_key, model=model),
-            ValidationExpert(api_key=api_key, model=model),
+            Thief(api_key=api_key, model=_select_model(Thief)),
+            AccessControlExpert(api_key=api_key, model=_select_model(AccessControlExpert)),
+            ArithmeticExpert(api_key=api_key, model=_select_model(ArithmeticExpert)),
+            CentralizationExpert(api_key=api_key, model=_select_model(CentralizationExpert)),
+            DeFiAnalyst(api_key=api_key, model=_select_model(DeFiAnalyst)),
+            DoSExpert(api_key=api_key, model=_select_model(DoSExpert)),
+            EconomicExpert(api_key=api_key, model=_select_model(EconomicExpert)),
+            ErrorHandlingExpert(api_key=api_key, model=_select_model(ErrorHandlingExpert)),
+            FlashLoanExpert(api_key=api_key, model=_select_model(FlashLoanExpert)),
+            FrontrunningExpert(api_key=api_key, model=_select_model(FrontrunningExpert)),
+            GasOptimizationExpert(api_key=api_key, model=_select_model(GasOptimizationExpert)),
+            InheritanceExpert(api_key=api_key, model=_select_model(InheritanceExpert)),
+            LogicExpert(api_key=api_key, model=_select_model(LogicExpert)),
+            LowLevelCallsExpert(api_key=api_key, model=_select_model(LowLevelCallsExpert)),
+            OracleExpert(api_key=api_key, model=_select_model(OracleExpert)),
+            ReentrancyExpert(api_key=api_key, model=_select_model(ReentrancyExpert)),
+            SignatureExpert(api_key=api_key, model=_select_model(SignatureExpert)),
+            StorageProxyExpert(api_key=api_key, model=_select_model(StorageProxyExpert)),
+            TimestampExpert(api_key=api_key, model=_select_model(TimestampExpert)),
+            TokenExpert(api_key=api_key, model=_select_model(TokenExpert)),
+            Critic(api_key=api_key, model=_select_model(Critic)),
         ]
         self._agent_by_type = {type(agent): agent for agent in self.agents}
         self._persona_name_to_type: Dict[str, Type] = {
@@ -69,7 +75,6 @@ class Swarm:
             "AccessControlExpert": AccessControlExpert,
             "ArithmeticExpert": ArithmeticExpert,
             "CentralizationExpert": CentralizationExpert,
-            "CompilerExpert": CompilerExpert,
             "DeFiAnalyst": DeFiAnalyst,
             "DoSExpert": DoSExpert,
             "EconomicExpert": EconomicExpert,
@@ -78,8 +83,6 @@ class Swarm:
             "FrontrunningExpert": FrontrunningExpert,
             "GasOptimizationExpert": GasOptimizationExpert,
             "InheritanceExpert": InheritanceExpert,
-            "InterfaceExpert": InterfaceExpert,
-            "Logician": Logician,
             "LogicExpert": LogicExpert,
             "LowLevelCallsExpert": LowLevelCallsExpert,
             "OracleExpert": OracleExpert,
@@ -88,7 +91,7 @@ class Swarm:
             "StorageProxyExpert": StorageProxyExpert,
             "TimestampExpert": TimestampExpert,
             "TokenExpert": TokenExpert,
-            "ValidationExpert": ValidationExpert,
+            "Critic": Critic,
         }
         self.routing_analyst = RoutingAnalyst(api_key=api_key, model=model)
         # In-memory cache keyed by content hash to skip re-analysis of unchanged files.
@@ -96,6 +99,8 @@ class Swarm:
         self._cache_lock = threading.Lock()
         # Toggle for enabling/disabling caching while iterating on logic.
         self.cache_enabled = cache_enabled
+        # Allow disabling router for benchmarking.
+        self.routing_enabled = routing_enabled
 
     def _select_agents(self, source_code: str, filename: str) -> List[Any]:
         """
@@ -103,6 +108,10 @@ class Swarm:
         context (pragma/imports/contracts/heuristics) to feed the router. If the router
         returns nothing or errors, we fall back to a minimal always-on set.
         """
+        if not self.routing_enabled:
+            logger.info("Routing disabled; using all personas for %s", filename)
+            return self.agents
+
         code_lower = source_code.lower()
 
         def has_any(substrings: List[str]) -> bool:
@@ -113,9 +122,9 @@ class Swarm:
             AccessControlExpert,
             ReentrancyExpert,
             LogicExpert,
-            Logician,
             DeFiAnalyst,
             GasOptimizationExpert,
+            Critic,
         }
 
         heuristic_hits: Set[str] = set()
@@ -196,7 +205,7 @@ class Swarm:
         )
         return selected
 
-    def _code_snippet(self, source_code: str, line_number: int, context: int = 2) -> str:
+    def _code_snippet(self, source_code: str, line_number: int, context: int = 12) -> str:
         """
         Returns a small, line-numbered snippet around the reported line for triage.
         """
@@ -214,7 +223,16 @@ class Swarm:
     def _content_hash(self, source_code: str) -> str:
         return hashlib.sha256(source_code.encode("utf-8")).hexdigest()
 
-    def analyze_file(self, source_code: str, filename: str) -> List[Dict[str, Any]]:
+    def analyze_file(
+        self,
+        source_code: str,
+        filename: str,
+        docs: str | None = None,
+        additional_links: List[str] | None = None,
+        additional_docs: str | None = None,
+        qa_responses: List | None = None,
+        persona_outputs: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Broadcasts the file to all agents in the Swarm.
         """
@@ -231,7 +249,14 @@ class Swarm:
 
         def _run_agent(agent):
             try:
-                return agent, agent.hunt(source_code, filename)
+                return agent, agent.hunt(
+                    source_code,
+                    filename,
+                    docs=docs,
+                    additional_links=additional_links,
+                    additional_docs=additional_docs,
+                    qa_responses=qa_responses,
+                )
             except Exception:
                 logger.exception("Agent %s failed during hunt on %s", agent.name, filename)
                 return agent, {}
@@ -239,6 +264,8 @@ class Swarm:
         max_workers = len(selected_agents) or 1
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             for agent, analysis in executor.map(_run_agent, selected_agents):
+                if persona_outputs is not None:
+                    persona_outputs.append({"persona": agent.name, "raw": analysis})
                 if analysis.get("found_vulnerability"):
                     snippet = self._code_snippet(source_code, analysis.get('line_number'))
                     description = analysis.get('kill_chain', 'No details')
