@@ -110,4 +110,11 @@ def select_top_findings(findings: List[VulnerabilityFinding], limit: int = 20) -
         scored.append((score, best))
 
     scored.sort(key=lambda item: item[0], reverse=True)
-    return [finding for _, finding in scored[:limit]]
+    # Prefer items that meet stronger criteria: either consensus >=2 or confidence >=60
+    filtered = []
+    for score, finding in scored:
+        support = score[0]
+        confidence = score[2]
+        if support >= 2 or confidence >= 60:
+            filtered.append(finding)
+    return filtered[:limit]

@@ -174,6 +174,22 @@ class SolidityAuditor:
 
             slither_summary = ""
 
+            persona_weights = {
+                # Downweight noisy personas but do not fully disable them
+                "CentralizationExpert": 0.6,
+                "ValidationExpert": 0.6,
+                "InterfaceExpert": 0.6,
+                "EconomicExpert": 0.6,
+                "OracleExpert": 0.7,
+                "TimestampExpert": 0.7,
+                "TokenExpert": 0.7,
+                "FlashLoanExpert": 0.7,
+                "FrontrunningExpert": 0.7,
+                "Thief": 0.8,
+                "AccessControlExpert": 0.8,
+                # Core personas keep full weight by default
+            }
+
             for file_obj in files_to_audit:
                 # file_obj has .path and .content attributes (from models/solidity_file.py)
                 logger.info(f"Swarm analyzing: {file_obj.path}")
@@ -193,11 +209,34 @@ class SolidityAuditor:
                 logger.debug(f"Raw swarm results for {file_obj.path}: {swarm_results}")
                 
                 for res in swarm_results:
-                    # Basic validation: require description and a location for quality
+                    # Quality gates: require description, severity, line, attack logic (for >= Medium), and reasonable confidence
+                    persona = res.get("detected_by", "unknown")
+                    weight = persona_weights.get(persona, 1.0)
                     if not res.get("description") or res.get("line_number", 0) == 0:
                         continue
+                    severity = res.get("severity", "High")
+                    severity_rank = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Informational": 0}
+                    if severity_rank.get(severity, 0) < 2:
+                        continue
+                    attack_logic = res.get("attack_logic")
+                    if severity_rank.get(severity, 0) >= 2 and (not attack_logic or str(attack_logic).strip().lower() in {"", "none"}):
+                        continue
+                    conf = res.get("confidence_score", 0)
+                    fp_risk = res.get("false_positive_risk", 100)
+                    try:
+                        conf = int(conf)
+                    except Exception:
+                        conf = 0
+                    try:
+                        fp_risk = int(fp_risk)
+                    except Exception:
+                        fp_risk = 100
+                    adjusted_conf = int(conf * weight)
+                    # Stricter gates: higher confidence after weighting; clamp fp_risk
+                    if adjusted_conf < 50 or fp_risk > 70:
+                        continue
+
                     # Map RedSpectre result to AgentArena Finding Model
-                    # We construct a structured, research-style narrative with logic/proof/snippet preserved
                     detailed_desc = (
                         f"{res['description']}\n\n"
                         f"Attack Logic: {res.get('attack_logic') or 'Not provided'}\n"
@@ -208,7 +247,7 @@ class SolidityAuditor:
                     verified_findings.append(VulnerabilityFinding(
                         title=res['title'],
                         description=detailed_desc,
-                        severity=res['severity'],
+                        severity=severity,
                         file_paths=[file_obj.path]
                     ))
 
