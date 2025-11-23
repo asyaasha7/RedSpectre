@@ -1,6 +1,9 @@
 import logging
 import re
 import concurrent.futures
+import hashlib
+import threading
+import copy
 from typing import List, Dict, Any, Set, Type
 from .personas.access_control_expert import AccessControlExpert
 from .personas.arithmetic_expert import ArithmeticExpert
@@ -31,7 +34,7 @@ from .personas.routing_analyst import RoutingAnalyst
 logger = logging.getLogger(__name__)
 
 class Swarm:
-    def __init__(self, api_key: str = None, model: str = None):
+    def __init__(self, api_key: str = None, model: str = None, cache_enabled: bool = False):
         # The Council of Agents
         # Add new personas here as you build them
         self.agents = [
@@ -88,6 +91,11 @@ class Swarm:
             "ValidationExpert": ValidationExpert,
         }
         self.routing_analyst = RoutingAnalyst(api_key=api_key, model=model)
+        # In-memory cache keyed by content hash to skip re-analysis of unchanged files.
+        self._analysis_cache: Dict[str, List[Dict[str, Any]]] = {}
+        self._cache_lock = threading.Lock()
+        # Toggle for enabling/disabling caching while iterating on logic.
+        self.cache_enabled = cache_enabled
 
     def _select_agents(self, source_code: str, filename: str) -> List[Any]:
         """
@@ -203,10 +211,21 @@ class Swarm:
         snippet_lines = [f"{i + 1}: {lines[i][:400]}" for i in range(start, end)]
         return "\n".join(snippet_lines)
 
+    def _content_hash(self, source_code: str) -> str:
+        return hashlib.sha256(source_code.encode("utf-8")).hexdigest()
+
     def analyze_file(self, source_code: str, filename: str) -> List[Dict[str, Any]]:
         """
         Broadcasts the file to all agents in the Swarm.
         """
+        cache_key = self._content_hash(source_code)
+        if self.cache_enabled:
+            with self._cache_lock:
+                cached = self._analysis_cache.get(cache_key)
+            if cached is not None:
+                logger.debug("Cache hit for %s (key=%s)", filename, cache_key[:8])
+                return copy.deepcopy(cached)
+
         findings = []
         selected_agents = self._select_agents(source_code, filename)
 
@@ -256,5 +275,9 @@ class Swarm:
                         "attack_logic": analysis.get("attack_logic", "Gas optimization reasoning"),
                         "verification_proof": analysis.get("verification_proof")
                     })
+
+        if self.cache_enabled:
+            with self._cache_lock:
+                self._analysis_cache[cache_key] = copy.deepcopy(findings)
 
         return findings
