@@ -7,7 +7,7 @@
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd RedSpectre
+   cd SwarmSecurity
    ```
 
 2. **Run the Makefile setup:**
@@ -45,9 +45,9 @@
 
 ## Project Summary
 
-RedSpectre is an advanced AI-powered security audit agent designed to automatically detect vulnerabilities in Solidity smart contracts. The system employs a **swarm intelligence architecture** where multiple specialized AI personas work collaboratively to analyze code from different security perspectives.
+Swarm.Security is an advanced AI-powered security audit agent designed to automatically detect vulnerabilities in Solidity smart contracts. The system employs a **swarm intelligence architecture** where multiple specialized AI personas work collaboratively to analyze code from different security perspectives.
 
-Unlike traditional static analysis tools, RedSpectre uses Large Language Models (LLMs) to understand contract logic, identify complex attack vectors, and provide detailed explanations of potential vulnerabilities. The agent can operate in two modes:
+Unlike traditional static analysis tools, Swarm.Security uses Large Language Models (LLMs) to understand contract logic, identify complex attack vectors, and provide detailed explanations of potential vulnerabilities. The agent can operate in two modes:
 
 - **Server Mode**: Receives audit tasks via webhook from the Nethermind Agent Arena platform
 - **Local Mode**: Directly audits GitHub repositories for testing and development
@@ -58,7 +58,7 @@ The system is built with modularity and extensibility in mind, allowing new secu
 
 ## Built for Nethermind Agent Arena
 
-RedSpectre was specifically developed to compete in the **Nethermind Agent Arena**, a platform that evaluates AI agents' ability to find security vulnerabilities in smart contracts. The agent is designed to:
+Swarm.Security was specifically developed to compete in the **Nethermind Agent Arena**, a platform that evaluates AI agents' ability to find security vulnerabilities in smart contracts. The agent is designed to:
 
 1. **Receive Tasks via Webhook**: The platform sends notifications when new audit challenges are available, including:
    - Task ID and repository URL
@@ -76,9 +76,50 @@ The architecture is optimized for the competitive environment, balancing thoroug
 
 ---
 
-## How RedSpectre Works - High Level
+## Benchmarks
 
-RedSpectre follows a **multi-stage analysis pipeline**:
+To validate the effectiveness of Swarm.Security, we conducted comprehensive benchmarking against real-world exploits. Our testing methodology involved comparing the agent's vulnerability detection capabilities against:
+
+1. **Production Code**: The same codebase that ran on the Agent Arena server during competition
+2. **Real-World Exploits**: Verified historical exploits from public security repositories
+
+### DeFiHackLabs Verification
+
+We verified the agent's detection capabilities against recent exploits documented in [DeFiHackLabs](https://github.com/SunWeb3Sec/DeFiHackLabs), a comprehensive repository of DeFi hack reproductions using Foundry. This repository contains real-world exploit scenarios that have been successfully executed and verified.
+
+#### Verified Exploits from DeFiHackLabs:
+
+- **20251007 TokenHolder - Access Control**
+  - Vulnerability Type: Access Control
+  - Successfully detected by the agent's `AccessControlExpert` and `Thief` personas
+
+- **20250827 0xf340 - Access Control**
+  - Vulnerability Type: Access Control
+  - Detected through comprehensive access control analysis
+
+- **20251004 MIMSpell3 - Bypassed Insolvency Check**
+  - Vulnerability Type: Logic Flaw (Insolvency Check Bypass)
+  - Identified by `LogicExpert`, `DeFiAnalyst`, and `EconomicExpert` personas
+
+### Additional Verification Sources
+
+The agent has also been tested against exploits from [learn-solidity-hacks](https://github.com/andreitoma8/learn-solidity-hacks.git), which provides educational examples of common Solidity vulnerabilities. These tests help ensure the agent can detect a wide range of vulnerability patterns across different contract architectures and attack vectors.
+
+### Benchmarking Methodology
+
+1. **Repository Cloning**: Each exploit repository is cloned locally
+2. **Contract Extraction**: Target contracts are identified and extracted
+3. **Agent Analysis**: Swarm.Security analyzes the contracts using its swarm of expert personas
+4. **Result Validation**: Findings are compared against known vulnerabilities to verify detection accuracy
+5. **False Positive Analysis**: The agent's findings are reviewed to minimize false positives while maintaining high detection rates
+
+This benchmarking approach ensures that Swarm.Security maintains high accuracy in detecting real-world vulnerabilities while operating within the constraints of the Agent Arena platform.
+
+---
+
+## How Swarm.Security Works - High Level
+
+Swarm.Security follows a **multi-stage analysis pipeline**:
 
 ### 1. **Entry Point**
    - **Server Mode**: FastAPI webhook endpoint receives notifications from Agent Arena
@@ -111,7 +152,7 @@ RedSpectre follows a **multi-stage analysis pipeline**:
 
 ---
 
-## How RedSpectre Works - Deep Dive
+## How Swarm.Security Works - Deep Dive
 
 ### Architecture Components
 
@@ -221,7 +262,7 @@ Agent Arena → Webhook → Server
 
 ## Agent Personas
 
-RedSpectre employs **25 specialized AI personas**, each an expert in a specific security domain. Below is a breakdown of each persona:
+Swarm.Security employs **25 specialized AI personas**, each an expert in a specific security domain. Below is a breakdown of each persona:
 
 ### Core Security Personas
 
