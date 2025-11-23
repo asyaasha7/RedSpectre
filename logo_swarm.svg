@@ -1,0 +1,92 @@
+<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#000000"/>
+  
+  <!-- 21 dots arranged in organic swarm pattern -->
+  <!-- Outer ring -->
+  <circle cx="200" cy="100" r="5" fill="#FFFFFF"/>
+  <circle cx="300" cy="80" r="5" fill="#FFFFFF"/>
+  <circle cx="450" cy="90" r="5" fill="#FFFFFF"/>
+  <circle cx="580" cy="110" r="5" fill="#FFFFFF"/>
+  <circle cx="650" cy="130" r="5" fill="#FFFFFF"/>
+  
+  <!-- Second ring -->
+  <circle cx="150" cy="160" r="5" fill="#FFFFFF"/>
+  <circle cx="250" cy="150" r="5" fill="#FFFFFF"/>
+  <circle cx="380" cy="140" r="5" fill="#FFFFFF"/>
+  <circle cx="500" cy="145" r="5" fill="#FFFFFF"/>
+  <circle cx="620" cy="155" r="5" fill="#FFFFFF"/>
+  <circle cx="700" cy="170" r="5" fill="#FFFFFF"/>
+  
+  <!-- Inner ring -->
+  <circle cx="180" cy="220" r="5" fill="#FFFFFF"/>
+  <circle cx="320" cy="210" r="5" fill="#FFFFFF"/>
+  <circle cx="450" cy="205" r="5" fill="#FFFFFF"/>
+  <circle cx="580" cy="215" r="5" fill="#FFFFFF"/>
+  
+  <!-- Near center -->
+  <circle cx="280" cy="250" r="5" fill="#FFFFFF"/>
+  <circle cx="400" cy="245" r="5" fill="#FFFFFF"/>
+  <circle cx="520" cy="250" r="5" fill="#FFFFFF"/>
+  
+  <!-- Convergence point - the conclusion -->
+  <circle cx="400" cy="280" r="12" fill="#FFD700" stroke="#FFFFFF" stroke-width="3"/>
+  <circle cx="400" cy="280" r="6" fill="#000000"/>
+  
+  <!-- Dense network of connections creating chaos -->
+  <!-- Outer to second ring -->
+  <line x1="200" y1="100" x2="150" y2="160" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="200" y1="100" x2="250" y2="150" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="300" y1="80" x2="250" y2="150" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="300" y1="80" x2="380" y2="140" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="450" y1="90" x2="380" y2="140" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="450" y1="90" x2="500" y2="145" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="580" y1="110" x2="500" y2="145" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="580" y1="110" x2="620" y2="155" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="650" y1="130" x2="620" y2="155" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="650" y1="130" x2="700" y2="170" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  
+  <!-- Second to inner ring -->
+  <line x1="150" y1="160" x2="180" y2="220" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="250" y1="150" x2="180" y2="220" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="250" y1="150" x2="320" y2="210" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="380" y1="140" x2="320" y2="210" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="380" y1="140" x2="450" y2="205" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="500" y1="145" x2="450" y2="205" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="500" y1="145" x2="580" y2="215" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="620" y1="155" x2="580" y2="215" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  <line x1="700" y1="170" x2="580" y2="215" stroke="#FFD700" stroke-width="1" opacity="0.3"/>
+  
+  <!-- Inner to near center -->
+  <line x1="180" y1="220" x2="280" y2="250" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  <line x1="320" y1="210" x2="280" y2="250" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  <line x1="320" y1="210" x2="400" y2="245" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  <line x1="450" y1="205" x2="400" y2="245" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  <line x1="450" y1="205" x2="520" y2="250" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  <line x1="580" y1="215" x2="520" y2="250" stroke="#FFD700" stroke-width="1.5" opacity="0.4"/>
+  
+  <!-- All converge to conclusion -->
+  <line x1="280" y1="250" x2="400" y2="280" stroke="#FFD700" stroke-width="2.5" opacity="0.7"/>
+  <line x1="400" y1="245" x2="400" y2="280" stroke="#FFD700" stroke-width="2.5" opacity="0.7"/>
+  <line x1="520" y1="250" x2="400" y2="280" stroke="#FFD700" stroke-width="2.5" opacity="0.7"/>
+  
+  <!-- Cross-connections for maximum chaos -->
+  <line x1="200" y1="100" x2="450" y2="205" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="300" y1="80" x2="580" y2="215" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="450" y1="90" x2="180" y2="220" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="580" y1="110" x2="320" y2="210" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="650" y1="130" x2="280" y2="250" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="150" y1="160" x2="520" y2="250" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  <line x1="250" y1="150" x2="400" y2="245" stroke="#FFFFFF" stroke-width="0.5" opacity="0.15"/>
+  
+  <!-- SWARM text -->
+  <text x="400" y="380" font-family="Arial, sans-serif" font-size="72" font-weight="900" 
+        fill="#FFFFFF" text-anchor="middle" letter-spacing="8">SWARM</text>
+  
+  <!-- SECURITY text -->
+  <text x="400" y="450" font-family="Arial, sans-serif" font-size="56" font-weight="bold" 
+        fill="#FFD700" text-anchor="middle" letter-spacing="6">SECURITY</text>
+  
+  <!-- Accent line -->
+  <line x1="250" y1="400" x2="550" y2="400" stroke="#FFD700" stroke-width="3"/>
+</svg>
+

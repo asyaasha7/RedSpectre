@@ -136,7 +136,7 @@ setup-env:
 	@echo "Creating .env file..."
 	@bash -c '\
 	echo "# OpenAI Configuration" > .env; \
-	read -p "Enter OPENAI_API_KEY: " key && echo "OPENAI_API_KEY=$$key" >> .env || echo "OPENAI_API_KEY=" >> .env; \
+	read -sp "Enter OPENAI_API_KEY: " key && echo "" && echo "OPENAI_API_KEY=$$key" >> .env || echo "" && echo "OPENAI_API_KEY=" >> .env; \
 	read -p "Enter OPENAI_MODEL [gpt-4.1-nano-2025-04-14]: " model && echo "OPENAI_MODEL=$${model:-gpt-4.1-nano-2025-04-14}" >> .env || echo "OPENAI_MODEL=gpt-4.1-nano-2025-04-14" >> .env; \
 	echo "" >> .env; \
 	echo "# Logging" >> .env; \
@@ -144,8 +144,8 @@ setup-env:
 	read -p "Enter LOG_FILE [agent.log]: " file && echo "LOG_FILE=$${file:-agent.log}" >> .env || echo "LOG_FILE=agent.log" >> .env; \
 	echo "" >> .env; \
 	echo "# Server Mode (Optional)" >> .env; \
-	read -p "Enter AGENTARENA_API_KEY (optional, press Enter to skip): " api_key && echo "AGENTARENA_API_KEY=$$api_key" >> .env || echo "AGENTARENA_API_KEY=" >> .env; \
-	read -p "Enter WEBHOOK_AUTH_TOKEN (optional, press Enter to skip): " token && echo "WEBHOOK_AUTH_TOKEN=$$token" >> .env || echo "WEBHOOK_AUTH_TOKEN=" >> .env; \
+	read -sp "Enter AGENTARENA_API_KEY (optional, press Enter to skip): " api_key && echo "" && echo "AGENTARENA_API_KEY=$$api_key" >> .env || echo "" && echo "AGENTARENA_API_KEY=" >> .env; \
+	read -sp "Enter WEBHOOK_AUTH_TOKEN (optional, press Enter to skip): " token && echo "" && echo "WEBHOOK_AUTH_TOKEN=$$token" >> .env || echo "" && echo "WEBHOOK_AUTH_TOKEN=" >> .env; \
 	read -p "Enter DATA_DIR [./data]: " dir && echo "DATA_DIR=$${dir:-./data}" >> .env || echo "DATA_DIR=./data" >> .env; \
 	echo ".env file created successfully!"'
 
