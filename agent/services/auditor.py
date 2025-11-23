@@ -4,6 +4,7 @@ MODIFIED to integrate Swarm logic while maintaining template compatibility.
 """
 import json
 import logging
+from datetime import datetime
 from typing import List
 from pydantic import BaseModel, Field
 from openai import OpenAI
@@ -178,6 +179,14 @@ class SolidityAuditor:
                 try:
                     logger.debug("Benchmark raw persona outputs: %s", json.dumps(raw_persona_outputs, indent=2, default=str))
                     logger.debug("Benchmark deduped outputs: %s", json.dumps([f.model_dump() for f in limited], indent=2, default=str))
+                    benchmark_payload = {
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "raw_persona_outputs": raw_persona_outputs or [],
+                        "deduped_findings": [f.model_dump() for f in limited],
+                    }
+                    with open("benchmarks/last_benchmark.json", "w") as f:
+                        json.dump(benchmark_payload, f, indent=2)
+                    logger.info("Benchmark artifacts written to benchmarks/last_benchmark.json")
                 except Exception:
                     logger.debug("Benchmark serialization failed for persona outputs or findings.")
             return Audit(findings=limited)
