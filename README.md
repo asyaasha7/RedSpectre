@@ -1,4 +1,4 @@
-# SwarmSecurity - Solidity Security Audit Agent 
+# SwarmSecurity - Collective Security  
 
 ## Quick Start
 
