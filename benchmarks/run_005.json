@@ -1,0 +1,13 @@
+{
+  "repo": "https://github.com/Swarm-Security/Repo4",
+  "duration_seconds": 84.31,
+  "counts": {
+    "Critical": 2,
+    "High": 2,
+    "Medium": 0,
+    "Low": 0,
+    "Informational": 0
+  },
+  "total_findings": 5,
+  "timestamp": "2025-11-23T09:38:35Z"
+}
